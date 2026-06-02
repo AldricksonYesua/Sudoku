@@ -141,7 +141,7 @@ class SudokuApp:
         self.root = root
         self.root.title("SUDOKU - TEC")
         self.root.resizable(False, False)
-
+        self.juego_cargado = False
         # variables del juego
         self.tablero        = crear_tablero_vacio()
         self.fijas          = crear_matriz_fijas()
@@ -290,34 +290,33 @@ class SudokuApp:
             else:
                 btn.config(bg = "SystemButtonFace")
     def iniciar_juego(self):
-        #verificar el nombre
-        nombre = self.entry_jugador.get() 
+        # verificar el nombre
+        nombre = self.entry_jugador.get()
         if len(nombre) < 1 or len(nombre) > 30:
             messagebox.showerror("Error", "El nombre del jugador debe tener entre 1 y 30 caracteres")
-            return 
-        #cargar partida aleatoria 
-        partida = obtener_partida_aleatoria(self.config["nivel"]) 
-        if partida is None:
-            messagebox.showerror("ERROR", "NO HAY PARTIDAS DE ESTE NIVEL") 
-            return 
-        #llnear tablero 
-        # si la casilla tiene un numero diferente de cero es una casilla fija
-        for i in range(9):
-            for j in range(9):
-                valor = partida["tablero"][i][j]
-                self.tablero[i][j] = valor
-                if valor != 0: 
-                    self.fijas[i][j] = True 
-                    self.botones_tablero[i][j].config(text=str(valor), bg="lightgray")
-                else:
-                    self.fijas[i][j] = False
-                    self.botones_tablero[i][j].config(text="", bg="white")
+            return
+        # si no hay juego cargado, cargar partida nueva
+        if not self.juego_cargado:
+            partida = obtener_partida_aleatoria(self.config["nivel"])
+            if partida is None:
+                messagebox.showerror("ERROR", "NO HAY PARTIDAS DE ESTE NIVEL")
+                return
+            for i in range(9):
+                for j in range(9):
+                    valor = partida["tablero"][i][j]
+                    self.tablero[i][j] = valor
+                    if valor != 0:
+                        self.fijas[i][j] = True
+                        self.botones_tablero[i][j].config(text=str(valor), bg="lightgray")
+                    else:
+                        self.fijas[i][j] = False
+                        self.botones_tablero[i][j].config(text="", bg="white")
+        # reiniciar pilas y estado
         self.pila_realizadas = crear_pila()
         self.pila_eliminadas = crear_pila()
-        #marco el juego como iniciado
+        self.juego_cargado = False
         self.juego_iniciado = True
-        #deshabilitar boton de iniciar juego
-        self.btn_iniciar.config(state = "disabled") 
+        self.btn_iniciar.config(state="disabled") 
 
     def deshacer_jugada(self):
         if not self.juego_iniciado:
@@ -358,12 +357,87 @@ class SudokuApp:
         # reiniciar las pilas
             self.pila_realizadas = crear_pila()
             self.pila_eliminadas = crear_pila()
-    def terminar_juego(self): pass
+    def terminar_juego(self): 
+        if not self.juego_iniciado:
+            messagebox.showerror("ERROR:", "EL JUEGO NO HA SIDO INICIADO")
+            return
+        respuesta = messagebox.askyesno("ELIMINAR JUEGO", "ESTA SERGURO DE TERMINAR EL JUEGO? SI/NO")
+        if respuesta:
+            self.tablero = crear_tablero_vacio()
+            self.fijas = crear_matriz_fijas() 
+            for i in range(9):
+                for j in range (9):
+                    self.botones_tablero[i][j].config(text = "", bg = "white")
+            #se reinician las pilas
+            self.pila_realizadas = crear_pila()
+            self.pila_eliminadas = crear_pila() 
+            self.juego_iniciado = False 
+            self.elemento_seleccionado = None 
+            self.btn_iniciar.config(state = " normal")
+
     def ver_top(self): pass
-    def guardar_juego(self): pass
-    def cargar_juego(self): pass
 
 
+    def guardar_juego(self):
+        if not self.juego_iniciado:
+            messagebox.showerror("ERROR:", "EL JUEGO NO HA SIDO INICIADO")
+            return
+        nombre = self.entry_jugador.get()
+        nivel = self.config["nivel"]
+        datos = {"jugador":nombre,"nivel":nivel,"tablero":self.tablero,"fijas":self.fijas}
+        if os.path.exists(ARCHIVO_GUARDADO):
+            with open(ARCHIVO_GUARDADO, 'r') as f:
+                guardado = json.load(f)
+        else:
+            guardado = {}
+    
+        clave = nombre + "_" + nivel
+        guardado[clave] = datos
+    
+    # guardar en el archivo
+        with open(ARCHIVO_GUARDADO, 'w') as f:
+            json.dump(guardado, f, indent=4)
+    
+        messagebox.showinfo("GUARDADO", "JUEGO GUARDADO EXITOSAMENTE")
+    def cargar_juego(self):
+        self.juego_cargado = True
+        if self.juego_iniciado:
+            messagebox.showerror("ERROR:", "YA HAY UN JUEGO INICIADO")
+            return
+        nombre = self.entry_jugador.get() 
+        if len(nombre) < 1 or len(nombre) > 30:
+            messagebox.showerror("Error", "El nombre del jugador debe tener entre 1 y 30 caracteres")
+            return 
+        nivel = self.config["nivel"]
+        clave = nombre + "_" + nivel
+        
+        if not os.path.exists(ARCHIVO_GUARDADO):
+            messagebox.showerror("ERROR", "NO TIENE UN JUEGO GUARDADO CON ESTA DIFICULTAD")
+            return
+        
+        with open(ARCHIVO_GUARDADO, 'r') as f:
+            guardado = json.load(f)
+        
+        if clave not in guardado:
+            messagebox.showerror("ERROR", "NO TIENE UN JUEGO GUARDADO CON ESTA DIFICULTAD")
+            return
+        # cargar los datos guardados
+        datos = guardado[clave]
+        self.tablero = datos["tablero"]
+        self.fijas   = datos["fijas"]
+        
+        # mostrar en pantalla
+        for i in range(9):
+            for j in range(9):
+                valor = self.tablero[i][j]
+                if self.fijas[i][j]:
+                    self.botones_tablero[i][j].config(text=str(valor), bg="lightgray")
+                elif valor != 0:
+                    self.botones_tablero[i][j].config(text=str(valor), bg="white")
+                else:
+                    self.botones_tablero[i][j].config(text="", bg="white")
+        
+        messagebox.showinfo("CARGADO", "JUEGO CARGADO EXITOSAMENTE. PRESIONE INICIAR JUEGO PARA CONTINUAR")
 if __name__ == "__main__":
     root = tk.Tk()
     app = SudokuApp(root)
