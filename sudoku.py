@@ -319,9 +319,45 @@ class SudokuApp:
         #deshabilitar boton de iniciar juego
         self.btn_iniciar.config(state = "disabled") 
 
-    def deshacer_jugada(self): pass
-    def rehacer_jugada(self): pass
-    def borrar_juego(self): pass
+    def deshacer_jugada(self):
+        if not self.juego_iniciado:
+            messagebox.showerror("ERROR:", "NO SE HA INICIADO EL JUEGO")
+            return 
+        if pila_vacia(self.pila_realizadas):
+            messagebox.showerror("ERROR", "NO HAY JUGADAS PARA DESHACER")
+            return
+        fila, col, valor = pila_pop(self.pila_realizadas)
+        self.tablero[fila][col] = 0
+        self.botones_tablero[fila][col].config(text="", bg="white") 
+        pila_push(self.pila_eliminadas,(fila,col,valor))
+
+    def rehacer_jugada(self):
+        if not self.juego_iniciado:
+            messagebox.showerror("ERROR:", "NO SE HA INICIADO EL JUEGO")
+            return 
+        if pila_vacia(self.pila_eliminadas):
+            messagebox.showerror("ERROR", "NO HAY JUGADAS PARA REHACER")
+            return
+        fila, col, valor = pila_pop(self.pila_eliminadas)
+        self.tablero[fila][col] =  valor
+        self.botones_tablero[fila][col].config(text=valor,bg="white")
+        pila_push(self.pila_realizadas,(fila,col,valor))
+
+    def borrar_juego(self): 
+        if not self.juego_iniciado:
+            messagebox.showerror("ERROR:","NO SE HA INICIADO EL JUEGO")
+            return
+        respuesta = messagebox.askyesno("BORRAR EL JUEGO", "ESTA SEGURO DE BORRAR EL JUEGO? SI/NO")
+        if respuesta:
+        # recorrer el tablero y borrar las casillas que no son fijas
+            for i in range(9):
+                for j in range(9):
+                    if not self.fijas[i][j]:
+                        self.tablero[i][j] = 0
+                        self.botones_tablero[i][j].config(text="", bg="white")
+        # reiniciar las pilas
+            self.pila_realizadas = crear_pila()
+            self.pila_eliminadas = crear_pila()
     def terminar_juego(self): pass
     def ver_top(self): pass
     def guardar_juego(self): pass
