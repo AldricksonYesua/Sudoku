@@ -35,8 +35,6 @@ def crear_matriz_fijas():
     #Retorna una matriz 9x9 de False (ninguna casilla es fija).
     return [[False]*9 for _ in range(9)]
 
-
-
 def crear_pila():
     # Retorna una pila vacia implementada con deque
     return deque()
@@ -53,8 +51,6 @@ def pila_pop(pila):
 def pila_vacia(pila):
     # Retorna True si la pila esta vacia
     return len(pila) == 0
-
-
 
 def es_valido_fila(tablero, fila, valor):
     # Verifica que el valor no este repetido en la fila
@@ -553,7 +549,6 @@ class SudokuApp:
         ventana.columnconfigure(1, minsize=130)
         ventana.columnconfigure(2, minsize=130)
 
-        
         tk.Label(ventana, text="Nivel:", font=("Arial", 11, "bold")).grid(
             row=0, column=0, padx=10, pady=5, sticky="w")
         nivel_var = tk.StringVar(value=self.config["nivel"])
@@ -632,7 +627,7 @@ class SudokuApp:
         tk.Button(ventana, text="GUARDAR", bg="green", fg="white",
                   font=("Arial", 11, "bold"), command=guardar).grid(
                   row=6, column=0, columnspan=3, pady=10)
-        
+       
     def abrir_ayuda(self):
         # abre el manual de usuario en PDF si existe
         manual = "manual_de_usuario_sudoku.pdf"
