@@ -1,9 +1,11 @@
 {
     "nivel": "facil",
-    "reloj": "cronometro",
-    "timer_horas": 0,
-    "timer_minutos": 0,
-    "timer_segundos": 0,
-    "top_x": 3,
-    "elementos": "numeros"
+    "reloj": {
+        "tipo": "cronometro",
+        "horas": 0,
+        "minutos": 0,
+        "segundos": 0
+    },
+    "elementos": "numeros",
+    "top x": 3
 }
