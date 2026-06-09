@@ -28,12 +28,24 @@ ARCHIVO_PARTIDAS  = 'sudoku2026partidas.json'
 
 
 def crear_tablero_vacio():
-    #Retorna una matriz 9x9 inicializada en cero.
-    return [[0]*9 for _ in range(9)]
+    # Retorna una matriz 9x9 inicializada en cero
+    tablero = []
+    for i in range(9):
+        fila = []
+        for j in range(9):
+            fila.append(0)
+        tablero.append(fila)
+    return tablero
 
 def crear_matriz_fijas():
-    #Retorna una matriz 9x9 de False (ninguna casilla es fija).
-    return [[False]*9 for _ in range(9)]
+    # Retorna una matriz 9x9 de False (ninguna casilla es fija)
+    matriz = []
+    for i in range(9):
+        fila = []
+        for j in range(9):
+            fila.append(False)
+        matriz.append(fila)
+    return matriz
 
 def crear_pila():
     # Retorna una pila vacia implementada con deque
@@ -120,17 +132,31 @@ def cargar_configuracion():
         config = json.load(f)
 
     # migrar formato viejo: "reloj" era string, ahora es dict anidado
-    if not isinstance(config.get("reloj"), dict):
+    if type(config.get("reloj")) != dict:
         tipo_viejo = config.get("reloj", "cronometro")
+        horas_viejas = 0
+        minutos_viejos = 0
+        segundos_viejos = 0
+        if "timer_horas" in config:
+            horas_viejas = config["timer_horas"]
+            del config["timer_horas"]
+        if "timer_minutos" in config:
+            minutos_viejos = config["timer_minutos"]
+            del config["timer_minutos"]
+        if "timer_segundos" in config:
+            segundos_viejos = config["timer_segundos"]
+            del config["timer_segundos"]
         config["reloj"] = {
-            "tipo": tipo_viejo,
-            "horas":   config.pop("timer_horas",   0),
-            "minutos": config.pop("timer_minutos",  0),
-            "segundos":config.pop("timer_segundos", 0)
+            "tipo":     tipo_viejo,
+            "horas":    horas_viejas,
+            "minutos":  minutos_viejos,
+            "segundos": segundos_viejos
         }
     # migrar llave "top_x" -> "top x"
-    if "top_x" in config and "top x" not in config:
-        config["top x"] = config.pop("top_x")
+    if "top_x" in config:
+        if "top x" not in config:
+            config["top x"] = config["top_x"]
+        del config["top_x"]
 
     # guardar el archivo ya en el formato nuevo
     with open(ARCHIVO_CONFIG, 'w', encoding='utf-8') as f:
@@ -185,6 +211,7 @@ class SudokuApp:
         self.elemento_seleccionado = None
         self.config = cargar_configuracion()
         self.segundos_totales = 0
+        self.segundos_jugados = 0
         self.cronometro_activo = False
 
         self.construir_interfaz()
@@ -233,13 +260,8 @@ class SudokuApp:
 
     def construir_panel_derecho(self):
         # nombre jugador
-        def validar_largo(texto):
-            return len(texto) <= 30
-
-        vcmd = (self.root.register(validar_largo), '%P')
         tk.Label(self.frame_derecho, text="JUGADOR").pack()
-        self.entry_jugador = tk.Entry(self.frame_derecho, width=20,
-                               validate='key', validatecommand=vcmd)
+        self.entry_jugador = tk.Entry(self.frame_derecho, width=20)
         self.entry_jugador.pack(pady=5)
 
         # panel de numeros
@@ -247,13 +269,22 @@ class SudokuApp:
         frame_nums.pack(pady=10)
         self.botones_elementos = []
         elementos = self.config.get("elementos", "numeros")
-        lista = NUMEROS if elementos == "numeros" else LETRAS
-        for i, val in enumerate(lista):
+        if elementos == "numeros":
+            lista = NUMEROS
+        else:
+            lista = LETRAS
+        fila_btn = 0
+        col_btn = 0
+        for val in lista:
             btn = tk.Button(frame_nums, text=val, width=3, height=1,
                             font=("Arial", 12),
                             command=lambda v=val: self.seleccionar_elemento(v))
-            btn.grid(row=i//3, column=i%3, padx=3, pady=3)
+            btn.grid(row=fila_btn, column=col_btn, padx=3, pady=3)
             self.botones_elementos.append(btn)
+            col_btn += 1
+            if col_btn == 3:
+                col_btn = 0
+                fila_btn += 1
         # etiqueta nivel
         self.label_nivel = tk.Label(self.frame_derecho, 
                              text="Nivel: " + self.config["nivel"])
@@ -284,20 +315,33 @@ class SudokuApp:
             ("GUARDAR JUEGO",   "white",    self.guardar_juego),
             ("CARGAR JUEGO",    "white",    self.cargar_juego),
         ]
-        for i, (texto, color, cmd) in enumerate(botones):
+        fila_btn = 0
+        col_btn = 0
+        for i in range(len(botones)):
+            texto = botones[i][0]
+            color = botones[i][1]
+            cmd   = botones[i][2]
             btn = tk.Button(self.frame_botones, text=texto, bg=color,
                     font=("Arial", 10, "bold"), width=14,
                     command=cmd)
-            btn.grid(row=i//4, column=i%4, padx=5, pady=5)
+            btn.grid(row=fila_btn, column=col_btn, padx=5, pady=5)
             if texto == "INICIAR JUEGO":
                 self.btn_iniciar = btn
+            col_btn += 1
+            if col_btn == 4:
+                col_btn = 0
+                fila_btn += 1
+
         menu_botones = [
             ("CONFIGURAR", "orange",     self.abrir_configuracion),
             ("AYUDA",      "lightgreen", self.abrir_ayuda),
             ("ACERCA DE",  "lightblue",  self.abrir_acerca),
             ("SALIR",      "red",        self.root.quit),
         ]
-        for i, (texto, color, cmd) in enumerate(menu_botones):
+        for i in range(len(menu_botones)):
+            texto = menu_botones[i][0]
+            color = menu_botones[i][1]
+            cmd   = menu_botones[i][2]
             tk.Button(self.frame_botones, text=texto, bg=color,
                       font=("Arial", 10, "bold"), width=14,
                       command=cmd).grid(row=2, column=i, padx=5, pady=5)
@@ -307,27 +351,36 @@ class SudokuApp:
             messagebox.showerror("ERROR", "EL JUEGO NO HA INICIADO")
             return 
         if self.elemento_seleccionado == None:
-            messagebox.showerror("ERROR", "NO EXISTE UN ELEMENTO SELECCIONADO") 
-            return 
-        valor_int = int(self.elemento_seleccionado)
+            messagebox.showerror("ERROR", "FALTA SELECCIONAR UN ELEMENTO")
+            return
+        elementos = self.config.get("elementos", "numeros")
+        if elementos == "numeros":
+            valor_int = int(self.elemento_seleccionado)
+        else:
+            valor_int = LETRAS.index(self.elemento_seleccionado) + 1
         valido, mensaje = validar_jugada(self.tablero, self.fijas, fila, col, valor_int)
         if not valido:
             self.botones_tablero[fila][col].config(bg="red")
             messagebox.showerror("ERROR", mensaje)
-            orig_bg = "lightgray" if self.fijas[fila][col] else "white"
+            if self.fijas[fila][col]:
+                orig_bg = "lightgray"
+            else:
+                orig_bg = "white"
             self.botones_tablero[fila][col].config(bg=orig_bg)
             return
         # jugada valida: poner el numero en el tablero
         self.tablero[fila][col] = valor_int
         self.botones_tablero[fila][col].config(text=self.elemento_seleccionado, bg="white")
         pila_push(self.pila_realizadas, (fila, col, valor_int))
+        self.pila_eliminadas = crear_pila()
         # verificar si el juego esta completo
         if juego_completo(self.tablero):
             self.cronometro_activo = False
             nombre = self.entry_jugador.get()
             nivel = self.config["nivel"]
             fecha_hora = datetime.now().strftime("%Y%m%dT%H%M%S")
-            guardar_en_bitacora(nombre, nivel, self.segundos_totales, fecha_hora)
+            if self.config["reloj"]["tipo"] != "ninguno":
+                guardar_en_bitacora(nombre, nivel, self.segundos_jugados, fecha_hora)
             messagebox.showinfo("FELICIDADES", "EXCELENTE! JUEGO COMPLETADO")
             self.juego_iniciado = False
             self.btn_iniciar.config(state="normal")
@@ -345,7 +398,22 @@ class SudokuApp:
 
     def actualizar_cronometro(self):
         if self.cronometro_activo:
-            self.segundos_totales += 1
+            tipo = self.config["reloj"]["tipo"]
+            self.segundos_jugados += 1
+            if tipo == "timer":
+                self.segundos_totales -= 1
+                if self.segundos_totales <= 0:
+                    self.segundos_totales = 0
+                    self.label_horas.config(text="00")
+                    self.label_minutos.config(text="00")
+                    self.label_segs.config(text="00")
+                    self.cronometro_activo = False
+                    self.juego_iniciado = False
+                    self.btn_iniciar.config(state="normal")
+                    messagebox.showwarning("TIEMPO", "TIEMPO EXPIRADO. JUEGO TERMINADO.")
+                    return
+            else:
+                self.segundos_totales += 1
             horas   = self.segundos_totales // 3600
             minutos = (self.segundos_totales % 3600) // 60
             segs    = self.segundos_totales % 60
@@ -373,7 +441,12 @@ class SudokuApp:
                     self.tablero[i][j] = valor
                     if valor != 0:
                         self.fijas[i][j] = True
-                        self.botones_tablero[i][j].config(text=str(valor), bg="lightgray")
+                        elementos_cfg = self.config.get("elementos", "numeros")
+                        if elementos_cfg == "numeros":
+                            texto_fija = str(valor)
+                        else:
+                            texto_fija = LETRAS[valor - 1]
+                        self.botones_tablero[i][j].config(text=texto_fija, bg="lightgray")
                     else:
                         self.fijas[i][j] = False
                         self.botones_tablero[i][j].config(text="", bg="white")
@@ -383,10 +456,26 @@ class SudokuApp:
         self.juego_cargado = False
         self.juego_iniciado = True
         self.btn_iniciar.config(state="disabled")
-        # arrancar cronometro
-        self.segundos_totales = 0
-        self.cronometro_activo = True
-        self.actualizar_cronometro()
+        # arrancar reloj segun tipo configurado
+        tipo_reloj = self.config["reloj"]["tipo"]
+        self.segundos_jugados = 0
+        if tipo_reloj == "timer":
+            h = self.config["reloj"]["horas"]
+            m = self.config["reloj"]["minutos"]
+            s = self.config["reloj"]["segundos"]
+            self.segundos_totales = h * 3600 + m * 60 + s
+            self.cronometro_activo = True
+            self.actualizar_cronometro()
+        elif tipo_reloj == "cronometro":
+            self.segundos_totales = 0
+            self.cronometro_activo = True
+            self.actualizar_cronometro()
+        else:
+            self.segundos_totales = 0
+            self.cronometro_activo = False
+            self.label_horas.config(text="--")
+            self.label_minutos.config(text="--")
+            self.label_segs.config(text="--")
 
     def deshacer_jugada(self):
         if not self.juego_iniciado:
@@ -408,9 +497,14 @@ class SudokuApp:
             messagebox.showerror("ERROR", "NO HAY JUGADAS PARA REHACER")
             return
         fila, col, valor = pila_pop(self.pila_eliminadas)
-        self.tablero[fila][col] =  valor
-        self.botones_tablero[fila][col].config(text=str(valor), bg="white")
-        pila_push(self.pila_realizadas,(fila,col,valor))
+        self.tablero[fila][col] = valor
+        elementos = self.config.get("elementos", "numeros")
+        if elementos == "numeros":
+            texto_mostrar = str(valor)
+        else:
+            texto_mostrar = LETRAS[valor - 1]
+        self.botones_tablero[fila][col].config(text=texto_mostrar, bg="white")
+        pila_push(self.pila_realizadas, (fila, col, valor))
 
     def borrar_juego(self): 
         if not self.juego_iniciado:
@@ -431,7 +525,7 @@ class SudokuApp:
         if not self.juego_iniciado:
             messagebox.showerror("ERROR:", "EL JUEGO NO HA SIDO INICIADO")
             return
-        respuesta = messagebox.askyesno("ELIMINAR JUEGO", "ESTA SERGURO DE TERMINAR EL JUEGO? SI/NO")
+        respuesta = messagebox.askyesno("ELIMINAR JUEGO", "ESTA SEGURO DE TERMINAR EL JUEGO? SI/NO")
         if respuesta:
             self.tablero = crear_tablero_vacio()
             self.fijas = crear_matriz_fijas() 
@@ -479,7 +573,10 @@ class SudokuApp:
         c = pdf_canvas.Canvas(pdf_path, pagesize=letter)
         y = alto - 50
 
-        titulo = "TOP " + (str(top_x) if top_x > 0 else "TODOS")
+        if top_x > 0:
+            titulo = "TOP " + str(top_x)
+        else:
+            titulo = "TOP TODOS"
         c.setFont("Helvetica-Bold", 16)
         c.drawString(50, y, titulo)
         y -= 30
@@ -496,7 +593,9 @@ class SudokuApp:
             for i in range(len(entradas)):
                 for j in range(i + 1, len(entradas)):
                     if entradas[i][0] > entradas[j][0]:
-                        entradas[i], entradas[j] = entradas[j], entradas[i]
+                        temp = entradas[i]
+                        entradas[i] = entradas[j]
+                        entradas[j] = temp
 
             if top_x > 0:
                 entradas = entradas[:top_x]
@@ -552,16 +651,17 @@ class SudokuApp:
         tk.Label(ventana, text="Nivel:", font=("Arial", 11, "bold")).grid(
             row=0, column=0, padx=10, pady=5, sticky="w")
         nivel_var = tk.StringVar(value=self.config["nivel"])
-        niveles_display = {"facil": "Facil", "intermedio": "Intermedio", "dificil": "Dificil"}
-        for i, nivel in enumerate(NIVELES):
-            tk.Radiobutton(ventana, text=niveles_display[nivel], variable=nivel_var,
-                           value=nivel).grid(row=i+1, column=0, padx=20, sticky="w")
+        for i in range(len(NIVELES)):
+            tk.Radiobutton(ventana, text=NIVELES[i].capitalize(), variable=nivel_var,
+                           value=NIVELES[i]).grid(row=i+1, column=0, padx=20, sticky="w")
 
         tk.Label(ventana, text="Reloj:", font=("Arial", 11, "bold")).grid(
             row=0, column=1, padx=10, pady=5, sticky="w")
         reloj_var = tk.StringVar(value=self.config["reloj"]["tipo"])
         reloj_opciones = [("cronometro", "Cronometro"), ("timer", "Timer"), ("ninguno", "Ninguno")]
-        for i, (valor, etiqueta) in enumerate(reloj_opciones):
+        for i in range(len(reloj_opciones)):
+            valor   = reloj_opciones[i][0]
+            etiqueta = reloj_opciones[i][1]
             tk.Radiobutton(ventana, text=etiqueta, variable=reloj_var,
                            value=valor).grid(row=i+1, column=1, padx=20, sticky="w")
 
@@ -578,14 +678,7 @@ class SudokuApp:
         tk.Spinbox(frame_timer, from_=0, to=59, textvariable=timer_m, width=4).grid(row=1, column=1, padx=2)
         tk.Spinbox(frame_timer, from_=0, to=59, textvariable=timer_s, width=4).grid(row=1, column=2, padx=2)
 
-        def actualizar_visibilidad_timer(*_):
-            if reloj_var.get() == "timer":
-                frame_timer.grid()
-            else:
-                frame_timer.grid_remove()
-
-        reloj_var.trace_add("write", actualizar_visibilidad_timer)
-        actualizar_visibilidad_timer()  # aplica el estado inicial
+        # los campos del timer siempre son visibles; solo se validan al guardar
 
         
         tk.Label(ventana, text="Elementos:", font=("Arial", 11, "bold")).grid(
@@ -606,7 +699,9 @@ class SudokuApp:
         def guardar():
             # validar timer si fue seleccionado
             if reloj_var.get() == "timer":
-                h, m, s = timer_h.get(), timer_m.get(), timer_s.get()
+                h = timer_h.get()
+                m = timer_m.get()
+                s = timer_s.get()
                 if h == 0 and m == 0 and s == 0:
                     messagebox.showerror("ERROR",
                         "El timer debe tener al menos un valor mayor a cero")
@@ -686,9 +781,9 @@ class SudokuApp:
             messagebox.showerror("ERROR", "NO TIENE UN JUEGO GUARDADO CON ESTA DIFICULTAD")
             return
         
-        with open(ARCHIVO_GUARDADO, 'r') as f:
+        with open(ARCHIVO_GUARDADO, 'r', encoding='utf-8') as f:
             guardado = json.load(f)
-        
+
         if clave not in guardado:
             messagebox.showerror("ERROR", "NO TIENE UN JUEGO GUARDADO CON ESTA DIFICULTAD")
             return
@@ -697,15 +792,20 @@ class SudokuApp:
         datos = guardado[clave]
         self.tablero = datos["tablero"]
         self.fijas   = datos["fijas"]
-        
+
         # mostrar en pantalla
+        elementos_cfg = self.config.get("elementos", "numeros")
         for i in range(9):
             for j in range(9):
                 valor = self.tablero[i][j]
+                if elementos_cfg == "numeros":
+                    texto_val = str(valor)
+                else:
+                    texto_val = LETRAS[valor - 1] if valor != 0 else ""
                 if self.fijas[i][j]:
-                    self.botones_tablero[i][j].config(text=str(valor), bg="lightgray")
+                    self.botones_tablero[i][j].config(text=texto_val, bg="lightgray")
                 elif valor != 0:
-                    self.botones_tablero[i][j].config(text=str(valor), bg="white")
+                    self.botones_tablero[i][j].config(text=texto_val, bg="white")
                 else:
                     self.botones_tablero[i][j].config(text="", bg="white")
         
