@@ -939,12 +939,252 @@ class SudokuApp:
                   row=6, column=0, columnspan=3, pady=10)
        
     def abrir_ayuda(self):
-        # abre el manual de usuario en PDF si existe
+        # Si el PDF existe, abrirlo (tiene imagenes de referencia)
         manual = "manual_de_usuario_sudoku.pdf"
         if os.path.exists(manual):
             os.startfile(manual)
-        else:
-            messagebox.showinfo("Ayuda", "El manual de usuario no esta disponible todavia.")
+            return
+        # Si no hay PDF, mostrar la ventana de texto como respaldo
+        ventana = tk.Toplevel(self.root)
+        ventana.title("Manual de Usuario - SUDOKU TEC")
+        ventana.resizable(True, True)
+        ventana.geometry("720x580")
+
+        frame = tk.Frame(ventana)
+        frame.pack(fill="both", expand=True, padx=10, pady=10)
+
+        scrollbar = tk.Scrollbar(frame)
+        scrollbar.pack(side="right", fill="y")
+
+        texto = tk.Text(frame, wrap="word", yscrollcommand=scrollbar.set,
+                        font=("Courier", 10), padx=10, pady=10)
+        texto.pack(side="left", fill="both", expand=True)
+        scrollbar.config(command=texto.yview)
+
+        texto.tag_config("titulo",    font=("Arial", 13, "bold"), justify="center")
+        texto.tag_config("seccion",   font=("Arial", 11, "bold"))
+        texto.tag_config("subsec",    font=("Arial", 10, "bold"))
+        texto.tag_config("nota",      font=("Arial", 10, "bold"), foreground="red")
+        texto.tag_config("codigo",    font=("Courier", 9),        background="#f0f0f0")
+        texto.tag_config("normal",    font=("Arial", 10))
+
+        def L(txt, tag="normal"):
+            texto.insert("end", txt + "\n", tag)
+
+        L("MANUAL DE USUARIO", "titulo")
+        L("S U D O K U  TEC", "titulo")
+        L("Instituto Tecnologico de Costa Rica — Taller de Programacion\n", "titulo")
+
+        # ---- 1 ----
+        L("1. Definicion del programa", "seccion")
+        L("SUDOKU TEC es un programa de escritorio en Python 3 con interfaz tkinter.")
+        L("El jugador llena una cuadricula 9x9 con los nueve elementos configurados")
+        L("(numeros 1-9 o letras A-I) sin repetir en fila, columna ni subcuadricula 3x3.")
+        L("Incluye: tres niveles, cronometro/timer, historial con deshacer/rehacer,")
+        L("guardado de partidas y ranking Top X exportado a PDF.\n")
+
+        # ---- 2 ----
+        L("2. Requisitos del sistema", "seccion")
+        L("- Python 3.x instalado.")
+        L("- Biblioteca tkinter (incluida por defecto en Windows).")
+        L("- Biblioteca reportlab para el PDF del Top X:")
+        L("    pip install reportlab", "codigo")
+        L("- Sistema operativo Windows (usa os.startfile para abrir PDFs).")
+        L("- Archivo sudoku2026partidas.json en la misma carpeta que sudoku.py.")
+        L("Para ejecutar:")
+        L("    py sudoku.py\n", "codigo")
+
+        # ---- 3 ----
+        L("3. Pantalla principal", "seccion")
+        L("Zona             Descripcion")
+        L("Encabezado       Titulo S U D O K U en letras blancas sobre fondo rojo.")
+        L("Tablero          Cuadricula 9x9. Bordes gruesos delimitan subcuadriculas 3x3.")
+        L("                 Casillas fijas en gris claro, vacias en blanco.")
+        L("Panel derecho    Campo JUGADOR, panel de elementos (1-9 o A-I),")
+        L("                 etiqueta de nivel activo y cronometro.")
+        L("Botones de juego INICIAR, DESHACER, BORRAR, TOP X, REHACER,")
+        L("                 TERMINAR, GUARDAR, CARGAR.")
+        L("Botones de menu  CONFIGURAR, AYUDA, ACERCA DE, SALIR.")
+        L("* El boton INICIAR JUEGO es el unico habilitado al abrir el programa.\n", "nota")
+
+        # ---- 4 ----
+        L("4. Iniciar Juego", "seccion")
+        L("Paso 1 — Ingresar el nombre del jugador (1 a 30 caracteres).", "subsec")
+        L("Error si esta vacio o supera 30 caracteres:")
+        L("  El nombre del jugador debe tener entre 1 y 30 caracteres", "codigo")
+        L("Paso 2 — Verificar la configuracion (nivel activo en panel derecho).", "subsec")
+        L("Paso 3 — Presionar INICIAR JUEGO.", "subsec")
+        L("El programa carga una partida aleatoria segun el nivel.")
+        L("Casillas fijas en gris. Si no hay partidas para ese nivel:")
+        L("  NO HAY PARTIDAS DE ESTE NIVEL", "codigo")
+        L("Comportamiento del reloj:")
+        L("  Cronometro  Arranca desde 00:00:00 y cuenta hacia arriba.")
+        L("  Timer       Arranca desde H:M:S configurado y cuenta hacia abajo.")
+        L("              Al llegar a 00:00:00 el juego termina.")
+        L("  Ninguno     Muestra -- sin conteo. No se registra en el Top X.")
+        L("* Luego de INICIAR JUEGO el boton se deshabilita.\n", "nota")
+
+        # ---- 5 ----
+        L("5. Seleccionar elemento y hacer una jugada", "seccion")
+        L("Paso 1 — Clic en el numero o letra del panel derecho (se pone verde).", "subsec")
+        L("Paso 2 — Clic en la casilla vacia del tablero.", "subsec")
+        L("Validaciones:")
+        L("  JUGADA NO ES VALIDA PORQUE ESTE ES UN ELEMENTO FIJO", "codigo")
+        L("  JUGADA NO ES VALIDA PORQUE EL ELEMENTO YA ESTA EN LA FILA", "codigo")
+        L("  JUGADA NO ES VALIDA PORQUE EL ELEMENTO YA ESTA EN LA COLUMNA", "codigo")
+        L("  JUGADA NO ES VALIDA PORQUE EL ELEMENTO YA ESTA EN LA CUADRICULA", "codigo")
+        L("Casilla roja brevemente si la jugada no es valida.")
+        L("Finalizacion: al llenar todo correctamente el reloj se detiene y muestra:")
+        L("  EXCELENTE! JUEGO COMPLETADO", "codigo")
+        L("La partida se guarda en bitacora (nombre, nivel, tiempo, fecha/hora).")
+        L("* Sin elemento seleccionado al clic: FALTA SELECCIONAR UN ELEMENTO\n", "nota")
+
+        # ---- 6 ----
+        L("6. Deshacer Jugada", "seccion")
+        L("Elimina la ultima jugada (usa pila TDA). Puede usarse multiples veces.")
+        L("El elemento pasa a la pila de jugadas eliminadas.")
+        L("  NO SE HA INICIADO EL JUEGO  — sin partida activa.", "codigo")
+        L("  NO HAY JUGADAS PARA DESHACER — pila vacia.", "codigo")
+        L("* La pila se reinicia al iniciar nuevo juego o usar BORRAR JUEGO.\n", "nota")
+
+        # ---- 7 ----
+        L("7. Rehacer Jugada", "seccion")
+        L("Restaura la ultima jugada deshecha (usa pila de eliminadas).")
+        L("  NO SE HA INICIADO EL JUEGO  — sin partida activa.", "codigo")
+        L("  NO HAY JUGADAS PARA REHACER — pila vacia.", "codigo")
+        L("* Nueva jugada tras deshacer vacia la pila de eliminadas automaticamente.\n", "nota")
+
+        # ---- 8 ----
+        L("8. Borrar Juego", "seccion")
+        L("Limpia jugadas del jugador, dejando solo casillas fijas.")
+        L("Pide confirmacion:")
+        L("  ESTA SEGURO DE BORRAR EL JUEGO? SI/NO", "codigo")
+        L("SI: casillas no fijas en blanco, pilas reiniciadas. NO: sin cambios.")
+        L("* Sin partida activa: NO SE HA INICIADO EL JUEGO\n", "nota")
+
+        # ---- 9 ----
+        L("9. Terminar Juego", "seccion")
+        L("Finaliza la partida sin completarla. Limpia tablero completo (incluyendo fijas),")
+        L("detiene el reloj y habilita INICIAR JUEGO.")
+        L("  ESTA SEGURO DE TERMINAR EL JUEGO? SI/NO", "codigo")
+        L("La partida NO se guarda en la bitacora.")
+        L("* Diferencia con BORRAR: elimina tambien casillas fijas. Irreversible.\n", "nota")
+
+        # ---- 10 ----
+        L("10. Top X", "seccion")
+        L("Genera y abre un PDF con el ranking de mejores tiempos por nivel.")
+        L("El reloj se pausa mientras se genera. Archivo: sudoku2026_top.pdf")
+        L("Formato del PDF:")
+        L("  TOP 3\n  NIVEL DIFICIL:\n  1- jugador1 0:45:10 08-06-2026 13:15:40", "codigo")
+        L("Top X = 0 muestra todas. Ordenadas de menor a mayor tiempo.")
+        L("* Solo se registran partidas completadas con cronometro o timer.\n", "nota")
+
+        # ---- 11 ----
+        L("11. Guardar Juego", "seccion")
+        L("Guarda el estado actual en sudoku2026juegoactual.json.")
+        L("Solo disponible con partida iniciada. Sobreescribe si ya existe guardado")
+        L("para el mismo nombre y nivel.")
+        L("  JUEGO GUARDADO EXITOSAMENTE", "codigo")
+        L("* Sin partida activa: EL JUEGO NO HA SIDO INICIADO\n", "nota")
+
+        # ---- 12 ----
+        L("12. Cargar Juego", "seccion")
+        L("Recupera una partida guardada. Solo disponible sin partida en curso.")
+        L("Pasos:")
+        L("  1. Escribir el nombre exacto usado al guardar.")
+        L("  2. Verificar que el nivel configurado coincida.")
+        L("  3. Presionar CARGAR JUEGO.")
+        L("  JUEGO CARGADO EXITOSAMENTE. PRESIONE INICIAR JUEGO PARA CONTINUAR", "codigo")
+        L("Despues presionar INICIAR JUEGO para reanudar el reloj.")
+        L("Errores:")
+        L("  YA HAY UN JUEGO INICIADO", "codigo")
+        L("  El nombre del jugador debe tener entre 1 y 30 caracteres", "codigo")
+        L("  NO TIENE UN JUEGO GUARDADO CON ESTA DIFICULTAD\n", "codigo")
+
+        # ---- 13 ----
+        L("13. Configurar", "seccion")
+        L("Abre ventana para ajustar condiciones del juego.")
+        L("Guarda en sudoku2026configuracion.json. Aplica a la siguiente partida.")
+        L("Nivel:", "subsec")
+        L("  Facil:       mayor cantidad de casillas fijas (mas facil).")
+        L("  Intermedio:  cantidad media.")
+        L("  Dificil:     pocas casillas fijas (mayor dificultad).")
+        L("Reloj:", "subsec")
+        L("  Cronometro: cuenta desde 00:00:00 hacia arriba.")
+        L("  Timer:      cuenta desde H:M:S configurado hacia abajo.")
+        L("              Al llegar a 00:00:00 el juego termina.")
+        L("  Ninguno:    sin reloj. No se registra en Top X.")
+        L("Parametros Timer (H/M/S): H entre 0-4, M y S entre 0-59.")
+        L("Al menos uno debe ser mayor a cero. Si los tres estan en 0:")
+        L("  El timer debe tener al menos un valor mayor a cero", "codigo")
+        L("Top X (0=todos): entero entre 0 y 10.")
+        L("Elementos: Numeros (1-9) o Letras (A-I).")
+        L("Presionar GUARDAR para aplicar:")
+        L("  Configuracion guardada exitosamente", "codigo")
+        L("* Los cambios solo aplican a la siguiente partida.\n", "nota")
+
+        # ---- 14 ----
+        L("14. Ayuda", "seccion")
+        L("Muestra este manual de usuario dentro del programa.\n")
+
+        # ---- 15 ----
+        L("15. Acerca de", "seccion")
+        L("Muestra ventana con informacion del programa:")
+        L("  Nombre: SUDOKU TEC  |  Version: 1.0  |  Fecha: Mayo 2026")
+        L("  Autor: Aldrickson Yesua")
+        L("  Curso: Taller de Programacion — TEC, Cartago, Costa Rica\n")
+
+        # ---- 16 ----
+        L("16. Salir", "seccion")
+        L("Cierra el programa inmediatamente.")
+        L("* Se recomienda GUARDAR JUEGO antes de salir.\n", "nota")
+
+        # ---- 17 ----
+        L("17. Manejo de errores", "seccion")
+        errores = [
+            ("El nombre del jugador debe tener entre 1 y 30 caracteres",
+             "Campo JUGADOR vacio o mayor a 30 caracteres al iniciar o cargar."),
+            ("NO HAY PARTIDAS DE ESTE NIVEL",
+             "No hay partidas registradas para el nivel seleccionado."),
+            ("EL JUEGO NO HA INICIADO",
+             "Clic en el tablero sin haber iniciado el juego."),
+            ("FALTA SELECCIONAR UN ELEMENTO",
+             "Clic en el tablero sin seleccionar elemento del panel."),
+            ("JUGADA NO ES VALIDA — ELEMENTO FIJO",
+             "Se intento modificar una casilla preestablecida (gris)."),
+            ("JUGADA NO ES VALIDA — YA ESTA EN LA FILA/COLUMNA/CUADRICULA",
+             "El elemento ya existe en esa fila, columna o subcuadricula 3x3."),
+            ("NO SE HA INICIADO EL JUEGO",
+             "Se presiono DESHACER, REHACER, BORRAR o TERMINAR sin partida activa."),
+            ("NO HAY JUGADAS PARA DESHACER",
+             "Pila de jugadas realizadas vacia."),
+            ("NO HAY JUGADAS PARA REHACER",
+             "Pila de jugadas eliminadas vacia."),
+            ("EL JUEGO NO HA SIDO INICIADO",
+             "Se presiono GUARDAR JUEGO sin partida activa."),
+            ("YA HAY UN JUEGO INICIADO",
+             "Se presiono CARGAR JUEGO con una partida en curso."),
+            ("NO TIENE UN JUEGO GUARDADO CON ESTA DIFICULTAD",
+             "No existe guardado para ese nombre y nivel."),
+            ("El timer debe tener al menos un valor mayor a cero",
+             "Timer seleccionado pero H, M y S estan en 0."),
+            ("TIEMPO EXPIRADO. JUEGO TERMINADO.",
+             "El timer llego a 00:00:00 sin completar el tablero."),
+            ("No hay partidas registradas aun",
+             "Bitacora vacia al presionar TOP X."),
+            ("Falta la libreria reportlab",
+             "reportlab no instalado. Ejecutar: pip install reportlab"),
+            ("El manual de usuario no esta disponible todavia.",
+             "Archivo PDF del manual no encontrado."),
+        ]
+        for msg, causa in errores:
+            texto.insert("end", "  " + msg + "\n", "codigo")
+            texto.insert("end", "    -> " + causa + "\n", "normal")
+        texto.insert("end", "\n")
+
+        texto.config(state="disabled")
+        tk.Button(ventana, text="Cerrar", command=ventana.destroy,
+                  bg="lightcoral", font=("Arial", 10, "bold"), width=10).pack(pady=6)
     def abrir_acerca(self):
         ventana = tk.Toplevel(self.root)
         ventana.title("Acerca de")
