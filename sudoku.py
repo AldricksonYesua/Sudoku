@@ -194,6 +194,157 @@ def guardar_en_bitacora(jugador, nivel, segundos, fecha_hora):
         json.dump(bitacora, f, indent=4)
 
 
+# === GENERADOR DE TABLEROS ===
+
+def _gen_valido(tablero, r, c, v):
+    for j in range(9):
+        if tablero[r][j] == v: return False
+    for i in range(9):
+        if tablero[i][c] == v: return False
+    rf = (r // 3) * 3
+    rc = (c // 3) * 3
+    for i in range(rf, rf + 3):
+        for j in range(rc, rc + 3):
+            if tablero[i][j] == v: return False
+    return True
+
+def _gen_llenar(tablero):
+    for r in range(9):
+        for c in range(9):
+            if tablero[r][c] == 0:
+                nums = list(range(1, 10))
+                random.shuffle(nums)
+                for n in nums:
+                    if _gen_valido(tablero, r, c, n):
+                        tablero[r][c] = n
+                        if _gen_llenar(tablero):
+                            return True
+                        tablero[r][c] = 0
+                return False
+    return True
+
+def _gen_contar(tablero, lim=2):
+    # Cuenta soluciones del tablero (se detiene en lim). Usa MRV para velocidad.
+    cont = [0]
+    def _cands(t, r, c):
+        s = set(range(1, 10))
+        for j in range(9): s.discard(t[r][j])
+        for i in range(9): s.discard(t[i][c])
+        rf = (r // 3) * 3
+        rc = (c // 3) * 3
+        for i in range(rf, rf + 3):
+            for j in range(rc, rc + 3):
+                s.discard(t[i][j])
+        return s
+    def _sol(t):
+        if cont[0] >= lim:
+            return
+        mejor = None
+        mc = 10
+        for r in range(9):
+            for c in range(9):
+                if t[r][c] == 0:
+                    cands = _cands(t, r, c)
+                    if not cands:
+                        return
+                    if len(cands) < mc:
+                        mc = len(cands)
+                        mejor = (r, c, cands)
+                        if mc == 1:
+                            break
+            if mejor and mc == 1:
+                break
+        if mejor is None:
+            cont[0] += 1
+            return
+        r, c, cands = mejor
+        for v in cands:
+            t[r][c] = v
+            _sol(t)
+            t[r][c] = 0
+    _sol([row[:] for row in tablero])
+    return cont[0]
+
+def _generar_tablero(vacios_obj):
+    # Genera un tablero con exactamente vacios_obj celdas vacías y solución única
+    sol = [[0] * 9 for _ in range(9)]
+    _gen_llenar(sol)
+    puzzle = [row[:] for row in sol]
+    celdas = [(r, c) for r in range(9) for c in range(9)]
+    random.shuffle(celdas)
+    removidos = 0
+    for r, c in celdas:
+        if removidos >= vacios_obj:
+            break
+        val = puzzle[r][c]
+        puzzle[r][c] = 0
+        if _gen_contar(puzzle) == 1:
+            removidos += 1
+        else:
+            puzzle[r][c] = val
+    return puzzle
+
+def inicializar_partidas(root):
+    # Asegura que haya MIN_N tableros por nivel con dificultad correcta.
+    # Genera los que falten mostrando una ventana de progreso.
+    MIN_N = 5
+    VACIOS_OBJ = {"facil": 36, "intermedio": 47, "dificil": 52}
+    # Rangos validos de celdas vacias por nivel; fuera del rango = dificultad erronea
+    VACIOS_MIN = {"facil": 30, "intermedio": 44, "dificil": 48}
+    VACIOS_MAX = {"facil": 43, "intermedio": 55, "dificil": 63}
+
+    partidas = {}
+    if os.path.exists(ARCHIVO_PARTIDAS):
+        with open(ARCHIVO_PARTIDAS, 'r', encoding='utf-8') as f:
+            partidas = json.load(f)
+
+    # Eliminar tableros con dificultad incorrecta para su nivel
+    cambiado = False
+    for nivel in NIVELES:
+        if nivel not in partidas:
+            partidas[nivel] = []
+            cambiado = True
+            continue
+        buenos = []
+        for b in partidas[nivel]:
+            vacios = sum(1 for r in range(9) for c in range(9) if b["tablero"][r][c] == 0)
+            if VACIOS_MIN[nivel] <= vacios <= VACIOS_MAX[nivel]:
+                buenos.append(b)
+            else:
+                cambiado = True
+        partidas[nivel] = buenos
+
+    falta = any(len(partidas[nivel]) < MIN_N for nivel in NIVELES)
+    if not falta:
+        if cambiado:
+            with open(ARCHIVO_PARTIDAS, 'w', encoding='utf-8') as f:
+                json.dump(partidas, f, indent=4)
+        return
+
+    # Mostrar ventana de progreso durante la generacion
+    loading = tk.Toplevel(root)
+    loading.title("Generando tableros")
+    loading.resizable(False, False)
+    loading.geometry("380x90")
+    loading.grab_set()
+    lbl = tk.Label(loading, text="Generando tableros de juego...",
+                   font=("Arial", 12), padx=20, pady=20)
+    lbl.pack()
+    loading.update()
+
+    for nivel in NIVELES:
+        while len(partidas[nivel]) < MIN_N:
+            lbl.config(text="Generando nivel {} ({}/{})...".format(
+                nivel.capitalize(), len(partidas[nivel]) + 1, MIN_N))
+            loading.update()
+            puzzle = _generar_tablero(VACIOS_OBJ[nivel])
+            partidas[nivel].append({"tablero": puzzle})
+
+    with open(ARCHIVO_PARTIDAS, 'w', encoding='utf-8') as f:
+        json.dump(partidas, f, indent=4)
+
+    loading.destroy()
+
 
 class SudokuApp:
     def __init__(self, root):
@@ -264,27 +415,11 @@ class SudokuApp:
         self.entry_jugador = tk.Entry(self.frame_derecho, width=20)
         self.entry_jugador.pack(pady=5)
 
-        # panel de numeros
-        frame_nums = tk.Frame(self.frame_derecho)
-        frame_nums.pack(pady=10)
+        # panel de numeros/letras
+        self.frame_elementos = tk.Frame(self.frame_derecho)
+        self.frame_elementos.pack(pady=10)
         self.botones_elementos = []
-        elementos = self.config.get("elementos", "numeros")
-        if elementos == "numeros":
-            lista = NUMEROS
-        else:
-            lista = LETRAS
-        fila_btn = 0
-        col_btn = 0
-        for val in lista:
-            btn = tk.Button(frame_nums, text=val, width=3, height=1,
-                            font=("Arial", 12),
-                            command=lambda v=val: self.seleccionar_elemento(v))
-            btn.grid(row=fila_btn, column=col_btn, padx=3, pady=3)
-            self.botones_elementos.append(btn)
-            col_btn += 1
-            if col_btn == 3:
-                col_btn = 0
-                fila_btn += 1
+        self._poblar_panel_elementos()
         # etiqueta nivel
         self.label_nivel = tk.Label(self.frame_derecho, 
                              text="Nivel: " + self.config["nivel"])
@@ -386,14 +521,35 @@ class SudokuApp:
             self.btn_iniciar.config(state="normal")
 
 
+    def _poblar_panel_elementos(self):
+        lista = NUMEROS if self.config.get("elementos", "numeros") == "numeros" else LETRAS
+        fila_btn = 0
+        col_btn = 0
+        for val in lista:
+            btn = tk.Button(self.frame_elementos, text=val, width=3, height=1,
+                            font=("Arial", 12),
+                            command=lambda v=val: self.seleccionar_elemento(v))
+            btn.grid(row=fila_btn, column=col_btn, padx=3, pady=3)
+            self.botones_elementos.append(btn)
+            col_btn += 1
+            if col_btn == 3:
+                col_btn = 0
+                fila_btn += 1
+
+    def reconstruir_panel_elementos(self):
+        for btn in self.botones_elementos:
+            btn.destroy()
+        self.botones_elementos = []
+        self.elemento_seleccionado = None
+        self._poblar_panel_elementos()
+
     def seleccionar_elemento(self, valor):
-        self.elemento_seleccionado = valor 
-        #recorrer botones del panel 
+        self.elemento_seleccionado = valor
         for btn in self.botones_elementos:
             if btn["text"] == valor:
-                btn.config(bg = "green") #marca el numero seleccionad
+                btn.config(bg="green")
             else:
-                btn.config(bg = "SystemButtonFace")
+                btn.config(bg="SystemButtonFace")
 
 
     def actualizar_cronometro(self):
@@ -538,6 +694,8 @@ class SudokuApp:
             self.pila_eliminadas = crear_pila()
             self.juego_iniciado = False
             self.elemento_seleccionado = None
+            for btn in self.botones_elementos:
+                btn.config(bg="SystemButtonFace")
             self.btn_iniciar.config(state="normal")
 
     def ver_top(self):
@@ -716,6 +874,7 @@ class SudokuApp:
             with open(ARCHIVO_CONFIG, 'w', encoding='utf-8') as f:
                 json.dump(self.config, f, indent=4)
             self.label_nivel.config(text="Nivel: " + self.config["nivel"])
+            self.reconstruir_panel_elementos()
             messagebox.showinfo("GUARDADO", "Configuracion guardada exitosamente")
             ventana.destroy()
 
@@ -812,6 +971,9 @@ class SudokuApp:
         messagebox.showinfo("CARGADO", "JUEGO CARGADO EXITOSAMENTE. PRESIONE INICIAR JUEGO PARA CONTINUAR")
 if __name__ == "__main__":
     root = tk.Tk()
+    root.withdraw()
+    inicializar_partidas(root)
+    root.deiconify()
     app = SudokuApp(root)
-    root.mainloop() 
+    root.mainloop()
 
