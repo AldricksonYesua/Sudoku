@@ -194,7 +194,7 @@ def guardar_en_bitacora(jugador, nivel, segundos, fecha_hora):
         json.dump(bitacora, f, indent=4)
 
 
-# === GENERADOR DE TABLEROS ===
+# Generador de tableros
 
 def _gen_valido(tablero, r, c, v):
     for j in range(9):
@@ -265,24 +265,51 @@ def _gen_contar(tablero, lim=2):
     _sol([row[:] for row in tablero])
     return cont[0]
 
+def _tiene_solucion_simple(tablero):
+    # Solver de backtracking simple (sin MRV) — verificación independiente de _gen_contar
+    t = [row[:] for row in tablero]
+    def _s(t):
+        for r in range(9):
+            for c in range(9):
+                if t[r][c] == 0:
+                    used = set(t[r]) | {t[i][c] for i in range(9)}
+                    rf, rc = (r // 3) * 3, (c // 3) * 3
+                    for i in range(rf, rf + 3):
+                        for j in range(rc, rc + 3):
+                            used.add(t[i][j])
+                    for n in range(1, 10):
+                        if n not in used:
+                            t[r][c] = n
+                            if _s(t):
+                                return True
+                            t[r][c] = 0
+                    return False
+        return True
+    return _s(t)
+
 def _generar_tablero(vacios_obj):
-    # Genera un tablero con exactamente vacios_obj celdas vacías y solución única
-    sol = [[0] * 9 for _ in range(9)]
-    _gen_llenar(sol)
-    puzzle = [row[:] for row in sol]
-    celdas = [(r, c) for r in range(9) for c in range(9)]
-    random.shuffle(celdas)
-    removidos = 0
-    for r, c in celdas:
-        if removidos >= vacios_obj:
-            break
-        val = puzzle[r][c]
-        puzzle[r][c] = 0
-        if _gen_contar(puzzle) == 1:
-            removidos += 1
-        else:
-            puzzle[r][c] = val
-    return puzzle
+    # Genera un tablero con vacios_obj celdas vacías y solución única verificada
+    # por dos solvers independientes (_gen_contar + _tiene_solucion_simple)
+    while True:
+        sol = [[0] * 9 for _ in range(9)]
+        _gen_llenar(sol)
+        puzzle = [row[:] for row in sol]
+        celdas = [(r, c) for r in range(9) for c in range(9)]
+        random.shuffle(celdas)
+        removidos = 0
+        for r, c in celdas:
+            if removidos >= vacios_obj:
+                break
+            val = puzzle[r][c]
+            puzzle[r][c] = 0
+            if _gen_contar(puzzle) == 1:
+                removidos += 1
+            else:
+                puzzle[r][c] = val
+        # Verificación final con solver independiente
+        if _tiene_solucion_simple(puzzle):
+            return puzzle
+        # No debería llegar aquí; si ocurre, regenerar
 
 def inicializar_partidas(root):
     # Asegura que haya MIN_N tableros por nivel con dificultad correcta.
@@ -308,7 +335,7 @@ def inicializar_partidas(root):
         buenos = []
         for b in partidas[nivel]:
             vacios = sum(1 for r in range(9) for c in range(9) if b["tablero"][r][c] == 0)
-            if VACIOS_MIN[nivel] <= vacios <= VACIOS_MAX[nivel]:
+            if VACIOS_MIN[nivel] <= vacios <= VACIOS_MAX[nivel] and _tiene_solucion_simple(b["tablero"]):
                 buenos.append(b)
             else:
                 cambiado = True
@@ -585,8 +612,10 @@ class SudokuApp:
         if len(nombre) < 1 or len(nombre) > 30:
             messagebox.showerror("Error", "El nombre del jugador debe tener entre 1 y 30 caracteres")
             return
-        # si no hay juego cargado, cargar partida nueva
+        tipo_reloj = self.config["reloj"]["tipo"]
+        elementos_cfg = self.config.get("elementos", "numeros")
         if not self.juego_cargado:
+            # Juego nuevo: cargar partida del JSON
             partida = obtener_partida_aleatoria(self.config["nivel"])
             if partida is None:
                 messagebox.showerror("ERROR", "NO HAY PARTIDAS DE ESTE NIVEL")
@@ -597,37 +626,61 @@ class SudokuApp:
                     self.tablero[i][j] = valor
                     if valor != 0:
                         self.fijas[i][j] = True
-                        elementos_cfg = self.config.get("elementos", "numeros")
-                        if elementos_cfg == "numeros":
-                            texto_fija = str(valor)
-                        else:
-                            texto_fija = LETRAS[valor - 1]
+                        texto_fija = str(valor) if elementos_cfg == "numeros" else LETRAS[valor - 1]
                         self.botones_tablero[i][j].config(text=texto_fija, bg="lightgray")
                     else:
                         self.fijas[i][j] = False
                         self.botones_tablero[i][j].config(text="", bg="white")
-        # reiniciar pilas y estado
+            # Reloj nuevo desde cero
+            self.segundos_jugados = 0
+            if tipo_reloj == "timer":
+                h = self.config["reloj"]["horas"]
+                m = self.config["reloj"]["minutos"]
+                s = self.config["reloj"]["segundos"]
+                self.segundos_totales = h * 3600 + m * 60 + s
+            else:
+                self.segundos_totales = 0
+        else:
+            # Juego cargado: re-renderizar el tablero desde los datos cargados
+            for i in range(9):
+                for j in range(9):
+                    valor = self.tablero[i][j]
+                    if elementos_cfg == "numeros":
+                        texto_val = str(valor) if valor != 0 else ""
+                    else:
+                        texto_val = LETRAS[valor - 1] if valor != 0 else ""
+                    if self.fijas[i][j]:
+                        self.botones_tablero[i][j].config(text=texto_val, bg="lightgray")
+                    elif valor != 0:
+                        self.botones_tablero[i][j].config(text=texto_val, bg="white")
+                    else:
+                        self.botones_tablero[i][j].config(text="", bg="white")
+            # Restaurar reloj desde el estado guardado
+            seg_tot = getattr(self, "_seg_totales_guardados", None)
+            self.segundos_jugados = getattr(self, "_seg_jugados_guardados", 0)
+            if seg_tot is not None:
+                self.segundos_totales = seg_tot
+            else:
+                # Guardado antiguo sin reloj: empezar desde cero
+                self.segundos_jugados = 0
+                if tipo_reloj == "timer":
+                    h = self.config["reloj"]["horas"]
+                    m = self.config["reloj"]["minutos"]
+                    s = self.config["reloj"]["segundos"]
+                    self.segundos_totales = h * 3600 + m * 60 + s
+                else:
+                    self.segundos_totales = 0
+        # Reiniciar pilas y estado
         self.pila_realizadas = crear_pila()
         self.pila_eliminadas = crear_pila()
         self.juego_cargado = False
         self.juego_iniciado = True
         self.btn_iniciar.config(state="disabled")
-        # arrancar reloj segun tipo configurado
-        tipo_reloj = self.config["reloj"]["tipo"]
-        self.segundos_jugados = 0
-        if tipo_reloj == "timer":
-            h = self.config["reloj"]["horas"]
-            m = self.config["reloj"]["minutos"]
-            s = self.config["reloj"]["segundos"]
-            self.segundos_totales = h * 3600 + m * 60 + s
-            self.cronometro_activo = True
-            self.actualizar_cronometro()
-        elif tipo_reloj == "cronometro":
-            self.segundos_totales = 0
+        # Arrancar reloj
+        if tipo_reloj in ("timer", "cronometro"):
             self.cronometro_activo = True
             self.actualizar_cronometro()
         else:
-            self.segundos_totales = 0
             self.cronometro_activo = False
             self.label_horas.config(text="--")
             self.label_minutos.config(text="--")
@@ -697,6 +750,9 @@ class SudokuApp:
             for btn in self.botones_elementos:
                 btn.config(bg="SystemButtonFace")
             self.btn_iniciar.config(state="normal")
+            self.label_horas.config(text="00")
+            self.label_minutos.config(text="00")
+            self.label_segs.config(text="00")
 
     def ver_top(self):
         # detener reloj mientras se ve el top
@@ -910,7 +966,14 @@ class SudokuApp:
             return
         nombre = self.entry_jugador.get()
         nivel = self.config["nivel"]
-        datos = {"jugador":nombre,"nivel":nivel,"tablero":self.tablero,"fijas":self.fijas}
+        datos = {
+            "jugador": nombre,
+            "nivel": nivel,
+            "tablero": self.tablero,
+            "fijas": self.fijas,
+            "segundos_totales": self.segundos_totales,
+            "segundos_jugados": self.segundos_jugados,
+        }
         if os.path.exists(ARCHIVO_GUARDADO):
             with open(ARCHIVO_GUARDADO, 'r', encoding='utf-8') as f:
                 guardado = json.load(f)
@@ -949,8 +1012,15 @@ class SudokuApp:
         self.juego_cargado = True
         # cargar los datos guardados
         datos = guardado[clave]
-        self.tablero = datos["tablero"]
+        tablero_raw = datos["tablero"]
         self.fijas   = datos["fijas"]
+
+        # Convertir todos los valores del tablero a enteros (compatibilidad con guardados antiguos)
+        self.tablero = [[int(v) if isinstance(v, str) else v for v in fila] for fila in tablero_raw]
+
+        # Guardar estado del reloj si estaba guardado
+        self._seg_totales_guardados = datos.get("segundos_totales", None)
+        self._seg_jugados_guardados = datos.get("segundos_jugados", 0)
 
         # mostrar en pantalla
         elementos_cfg = self.config.get("elementos", "numeros")
@@ -958,7 +1028,7 @@ class SudokuApp:
             for j in range(9):
                 valor = self.tablero[i][j]
                 if elementos_cfg == "numeros":
-                    texto_val = str(valor)
+                    texto_val = str(valor) if valor != 0 else ""
                 else:
                     texto_val = LETRAS[valor - 1] if valor != 0 else ""
                 if self.fijas[i][j]:
