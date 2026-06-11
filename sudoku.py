@@ -24,62 +24,49 @@ ARCHIVO_GUARDADO  = 'sudoku2026juegoactual.json'
 ARCHIVO_PARTIDAS  = 'sudoku2026partidas.json'
 
 
-# ESTRUCTURAS DE DATOS DEL TABLERO
-
-
 def crear_tablero_vacio():
-    # Retorna una matriz 9x9 inicializada en cero
     tablero = []
-    for i in range(9):
+    for _ in range(9):
         fila = []
-        for j in range(9):
+        for _ in range(9):
             fila.append(0)
         tablero.append(fila)
     return tablero
 
 def crear_matriz_fijas():
-    # Retorna una matriz 9x9 de False (ninguna casilla es fija)
     matriz = []
-    for i in range(9):
+    for _ in range(9):
         fila = []
-        for j in range(9):
+        for _ in range(9):
             fila.append(False)
         matriz.append(fila)
     return matriz
 
 def crear_pila():
-    # Retorna una pila vacia implementada con deque
     return deque()
 
 def pila_push(pila, elemento):
-    # Agrega un elemento al tope de la pila
     pila.append(elemento)
 
 def pila_pop(pila):
-    # Saca y retorna el elemento del tope de la pila
-    # Cada elemento es una tupla (fila, columna, valor)
     return pila.pop()
 
 def pila_vacia(pila):
-    # Retorna True si la pila esta vacia
     return len(pila) == 0
 
 def es_valido_fila(tablero, fila, valor):
-    # Verifica que el valor no este repetido en la fila
     for col in range(9):
         if tablero[fila][col] == valor:
             return False
     return True
 
 def es_valido_columna(tablero, columna, valor):
-    # Verifica que el valor no este repetido en la columna
     for fila in range(9):
         if tablero[fila][columna] == valor:
             return False
     return True
 
 def es_valido_cuadricula(tablero, fila, columna, valor):
-    # Verifica que el valor no este repetido en la subcuadricula 3x3
     inicio_fila = (fila // 3) * 3
     inicio_col  = (columna // 3) * 3
     for i in range(inicio_fila, inicio_fila + 3):
@@ -89,8 +76,6 @@ def es_valido_cuadricula(tablero, fila, columna, valor):
     return True
 
 def validar_jugada(tablero, fijas, fila, columna, valor):
-    # Valida una jugada completa
-    # Retorna (True, '') si es valida o (False, mensaje) si no lo es
     if fijas[fila][columna]:
         return False, "JUGADA NO ES VALIDA PORQUE ESTE ES UN ELEMENTO FIJO"
     if not es_valido_fila(tablero, fila, valor):
@@ -102,7 +87,6 @@ def validar_jugada(tablero, fijas, fila, columna, valor):
     return True, ""
 
 def juego_completo(tablero):
-    # Retorna True si todas las casillas estan llenas (sin ceros)
     for fila in range(9):
         for col in range(9):
             if tablero[fila][col] == 0:
@@ -111,7 +95,6 @@ def juego_completo(tablero):
 
 
 def cargar_configuracion():
-    # Carga la configuracion desde el archivo, si no existe crea una por defecto
     config_default = {
         "nivel": "facil",
         "reloj": {
@@ -132,7 +115,7 @@ def cargar_configuracion():
         config = json.load(f)
 
     # migrar formato viejo: "reloj" era string, ahora es dict anidado
-    if type(config.get("reloj")) != dict:
+    if not isinstance(config.get("reloj"), dict):
         tipo_viejo = config.get("reloj", "cronometro")
         horas_viejas = 0
         minutos_viejos = 0
@@ -158,15 +141,12 @@ def cargar_configuracion():
             config["top x"] = config["top_x"]
         del config["top_x"]
 
-    # guardar el archivo ya en el formato nuevo
     with open(ARCHIVO_CONFIG, 'w', encoding='utf-8') as f:
         json.dump(config, f, indent=4)
 
     return config
 
 def obtener_partida_aleatoria(nivel):
-    # Abre el archivo de partidas y selecciona una al azar del nivel indicado
-    # Retorna la partida o None si no hay partidas de ese nivel
     if not os.path.exists(ARCHIVO_PARTIDAS):
         return None
     with open(ARCHIVO_PARTIDAS, 'r', encoding='utf-8') as f:
@@ -177,7 +157,6 @@ def obtener_partida_aleatoria(nivel):
     return partidas[nivel][indice]
 
 def guardar_en_bitacora(jugador, nivel, segundos, fecha_hora):
-    # Guarda una partida completada en la bitacora
     bitacora = {}
     if os.path.exists(ARCHIVO_BITACORA):
         with open(ARCHIVO_BITACORA, 'r', encoding='utf-8') as f:
@@ -193,8 +172,6 @@ def guardar_en_bitacora(jugador, nivel, segundos, fecha_hora):
     with open(ARCHIVO_BITACORA, 'w', encoding='utf-8') as f:
         json.dump(bitacora, f, indent=4)
 
-
-# Generador de tableros
 
 def _gen_valido(tablero, r, c, v):
     for j in range(9):
@@ -288,8 +265,6 @@ def _tiene_solucion_simple(tablero):
     return _s(t)
 
 def _generar_tablero(vacios_obj):
-    # Genera un tablero con vacios_obj celdas vacías y solución única verificada
-    # por dos solvers independientes (_gen_contar + _tiene_solucion_simple)
     while True:
         sol = [[0] * 9 for _ in range(9)]
         _gen_llenar(sol)
@@ -306,14 +281,10 @@ def _generar_tablero(vacios_obj):
                 removidos += 1
             else:
                 puzzle[r][c] = val
-        # Verificación final con solver independiente
         if _tiene_solucion_simple(puzzle):
             return puzzle
-        # No debería llegar aquí; si ocurre, regenerar
 
 def inicializar_partidas(root):
-    # Asegura que haya MIN_N tableros por nivel con dificultad correcta.
-    # Genera los que falten mostrando una ventana de progreso.
     MIN_N = 5
     VACIOS_OBJ = {"facil": 36, "intermedio": 47, "dificil": 52}
     # Rangos validos de celdas vacias por nivel; fuera del rango = dificultad erronea
@@ -325,7 +296,6 @@ def inicializar_partidas(root):
         with open(ARCHIVO_PARTIDAS, 'r', encoding='utf-8') as f:
             partidas = json.load(f)
 
-    # Eliminar tableros con dificultad incorrecta para su nivel
     cambiado = False
     for nivel in NIVELES:
         if nivel not in partidas:
@@ -348,7 +318,6 @@ def inicializar_partidas(root):
                 json.dump(partidas, f, indent=4)
         return
 
-    # Mostrar ventana de progreso durante la generacion
     loading = tk.Toplevel(root)
     loading.title("Generando tableros")
     loading.resizable(False, False)
@@ -379,10 +348,8 @@ class SudokuApp:
         self.root.title("SUDOKU - TEC")
         self.root.resizable(False, False)
         self.juego_cargado = False
-        # variables del juego
         self.tablero        = crear_tablero_vacio()
         self.fijas          = crear_matriz_fijas()
-        self.tablero_orig   = crear_tablero_vacio()
         self.pila_realizadas  = crear_pila()
         self.pila_eliminadas  = crear_pila()
         self.juego_iniciado = False
@@ -391,31 +358,30 @@ class SudokuApp:
         self.segundos_totales = 0
         self.segundos_jugados = 0
         self.cronometro_activo = False
+        self._tipo_reloj_activo = self.config["reloj"]["tipo"]
+        self._timer_segundos_orig = 0
 
         self.construir_interfaz()
 
     def construir_interfaz(self):
-        # titulo
         titulo = tk.Label(self.root, text="S U D O K U",
                           bg="red", fg="white",
                           font=("Arial", 20, "bold"), pady=5)
         titulo.grid(row=0, column=0, columnspan=2, sticky="ew", padx=10, pady=10)
 
-        # tablero
         self.frame_tablero = tk.Frame(self.root, bg="black")
         self.frame_tablero.grid(row=1, column=0, padx=10, pady=5)
         self.botones_tablero = []
         self.construir_tablero()
 
-        # panel derecho
         self.frame_derecho = tk.Frame(self.root)
         self.frame_derecho.grid(row=1, column=1, padx=10, pady=5, sticky="n")
         self.construir_panel_derecho()
 
-        # botones
         self.frame_botones = tk.Frame(self.root)
         self.frame_botones.grid(row=2, column=0, columnspan=2, pady=10)
         self.construir_botones()
+        self._sync_reloj_visible()
 
     def construir_tablero(self):
         for fila in range(9):
@@ -437,31 +403,28 @@ class SudokuApp:
             self.botones_tablero.append(fila_botones)
 
     def construir_panel_derecho(self):
-        # nombre jugador
         tk.Label(self.frame_derecho, text="JUGADOR").pack()
         self.entry_jugador = tk.Entry(self.frame_derecho, width=20)
         self.entry_jugador.pack(pady=5)
 
-        # panel de numeros/letras
         self.frame_elementos = tk.Frame(self.frame_derecho)
         self.frame_elementos.pack(pady=10)
         self.botones_elementos = []
         self._poblar_panel_elementos()
-        # etiqueta nivel
-        self.label_nivel = tk.Label(self.frame_derecho, 
+
+        self.label_nivel = tk.Label(self.frame_derecho,
                              text="Nivel: " + self.config["nivel"])
         self.label_nivel.pack(pady=5)
 
-        # cronometro
-        frame_reloj = tk.Frame(self.frame_derecho)
-        frame_reloj.pack(pady=5)
-        tk.Label(frame_reloj, text="Cronometro").grid(row=0, columnspan=3)
-        tk.Label(frame_reloj, text="Horas").grid(row=1, column=0)
-        tk.Label(frame_reloj, text="Minutos").grid(row=1, column=1)
-        tk.Label(frame_reloj, text="Segundos").grid(row=1, column=2)
-        self.label_horas   = tk.Label(frame_reloj, text="00", width=4, relief="sunken")
-        self.label_minutos = tk.Label(frame_reloj, text="00", width=4, relief="sunken")
-        self.label_segs    = tk.Label(frame_reloj, text="00", width=4, relief="sunken")
+        self.frame_reloj = tk.Frame(self.frame_derecho)
+        self.frame_reloj.pack(pady=5)
+        tk.Label(self.frame_reloj, text="Cronometro").grid(row=0, columnspan=3)
+        tk.Label(self.frame_reloj, text="Horas").grid(row=1, column=0)
+        tk.Label(self.frame_reloj, text="Minutos").grid(row=1, column=1)
+        tk.Label(self.frame_reloj, text="Segundos").grid(row=1, column=2)
+        self.label_horas   = tk.Label(self.frame_reloj, text="00", width=4, relief="sunken")
+        self.label_minutos = tk.Label(self.frame_reloj, text="00", width=4, relief="sunken")
+        self.label_segs    = tk.Label(self.frame_reloj, text="00", width=4, relief="sunken")
         self.label_horas.grid(row=2, column=0, padx=3)
         self.label_minutos.grid(row=2, column=1, padx=3)
         self.label_segs.grid(row=2, column=2, padx=3)
@@ -479,10 +442,7 @@ class SudokuApp:
         ]
         fila_btn = 0
         col_btn = 0
-        for i in range(len(botones)):
-            texto = botones[i][0]
-            color = botones[i][1]
-            cmd   = botones[i][2]
+        for texto, color, cmd in botones:
             btn = tk.Button(self.frame_botones, text=texto, bg=color,
                     font=("Arial", 10, "bold"), width=14,
                     command=cmd)
@@ -500,19 +460,22 @@ class SudokuApp:
             ("ACERCA DE",  "lightblue",  self.abrir_acerca),
             ("SALIR",      "red",        self.root.quit),
         ]
-        for i in range(len(menu_botones)):
-            texto = menu_botones[i][0]
-            color = menu_botones[i][1]
-            cmd   = menu_botones[i][2]
+        for i, (texto, color, cmd) in enumerate(menu_botones):
             tk.Button(self.frame_botones, text=texto, bg=color,
                       font=("Arial", 10, "bold"), width=14,
                       command=cmd).grid(row=2, column=i, padx=5, pady=5)
 
-    def click_casilla(self, fila, col): 
-        if self.juego_iniciado == False:
+    def _sync_reloj_visible(self):
+        if self.config["reloj"]["tipo"] == "ninguno":
+            self.frame_reloj.pack_forget()
+        else:
+            self.frame_reloj.pack(pady=5)
+
+    def click_casilla(self, fila, col):
+        if not self.juego_iniciado:
             messagebox.showerror("ERROR", "EL JUEGO NO HA INICIADO")
-            return 
-        if self.elemento_seleccionado == None:
+            return
+        if self.elemento_seleccionado is None:
             messagebox.showerror("ERROR", "FALTA SELECCIONAR UN ELEMENTO")
             return
         elementos = self.config.get("elementos", "numeros")
@@ -530,12 +493,10 @@ class SudokuApp:
                 orig_bg = "white"
             self.botones_tablero[fila][col].config(bg=orig_bg)
             return
-        # jugada valida: poner el numero en el tablero
         self.tablero[fila][col] = valor_int
         self.botones_tablero[fila][col].config(text=self.elemento_seleccionado, bg="white")
         pila_push(self.pila_realizadas, (fila, col, valor_int))
         self.pila_eliminadas = crear_pila()
-        # verificar si el juego esta completo
         if juego_completo(self.tablero):
             self.cronometro_activo = False
             nombre = self.entry_jugador.get()
@@ -581,9 +542,8 @@ class SudokuApp:
 
     def actualizar_cronometro(self):
         if self.cronometro_activo:
-            tipo = self.config["reloj"]["tipo"]
             self.segundos_jugados += 1
-            if tipo == "timer":
+            if self._tipo_reloj_activo == "timer":
                 self.segundos_totales -= 1
                 if self.segundos_totales <= 0:
                     self.segundos_totales = 0
@@ -591,9 +551,18 @@ class SudokuApp:
                     self.label_minutos.config(text="00")
                     self.label_segs.config(text="00")
                     self.cronometro_activo = False
-                    self.juego_iniciado = False
-                    self.btn_iniciar.config(state="normal")
-                    messagebox.showwarning("TIEMPO", "TIEMPO EXPIRADO. JUEGO TERMINADO.")
+                    continuar = messagebox.askyesno(
+                        "TIEMPO EXPIRADO",
+                        "TIEMPO EXPIRADO. ¿DESEA CONTINUAR EL MISMO JUEGO (SI O NO)?")
+                    if continuar:
+                        # Pasa a cronometro arrancando desde el tiempo original del timer
+                        self._tipo_reloj_activo = "cronometro"
+                        self.segundos_totales = self._timer_segundos_orig
+                        self.cronometro_activo = True
+                        self.actualizar_cronometro()
+                    else:
+                        self.juego_iniciado = False
+                        self.btn_iniciar.config(state="normal")
                     return
             else:
                 self.segundos_totales += 1
@@ -607,15 +576,23 @@ class SudokuApp:
 
             
     def iniciar_juego(self):
-        # verificar el nombre
         nombre = self.entry_jugador.get()
         if len(nombre) < 1 or len(nombre) > 30:
             messagebox.showerror("Error", "El nombre del jugador debe tener entre 1 y 30 caracteres")
             return
+        if os.path.exists(ARCHIVO_BITACORA):
+            with open(ARCHIVO_BITACORA, 'r', encoding='utf-8') as f:
+                _bitacora_check = json.load(f)
+            if nombre in _bitacora_check:
+                continuar = messagebox.askyesno(
+                    "NOMBRE EN USO",
+                    "El jugador '{}' ya tiene partidas registradas en el TOP.\n"
+                    "¿Desea continuar con este nombre?".format(nombre))
+                if not continuar:
+                    return
         tipo_reloj = self.config["reloj"]["tipo"]
         elementos_cfg = self.config.get("elementos", "numeros")
         if not self.juego_cargado:
-            # Juego nuevo: cargar partida del JSON
             partida = obtener_partida_aleatoria(self.config["nivel"])
             if partida is None:
                 messagebox.showerror("ERROR", "NO HAY PARTIDAS DE ESTE NIVEL")
@@ -631,7 +608,6 @@ class SudokuApp:
                     else:
                         self.fijas[i][j] = False
                         self.botones_tablero[i][j].config(text="", bg="white")
-            # Reloj nuevo desde cero
             self.segundos_jugados = 0
             if tipo_reloj == "timer":
                 h = self.config["reloj"]["horas"]
@@ -641,7 +617,6 @@ class SudokuApp:
             else:
                 self.segundos_totales = 0
         else:
-            # Juego cargado: re-renderizar el tablero desde los datos cargados
             for i in range(9):
                 for j in range(9):
                     valor = self.tablero[i][j]
@@ -655,13 +630,12 @@ class SudokuApp:
                         self.botones_tablero[i][j].config(text=texto_val, bg="white")
                     else:
                         self.botones_tablero[i][j].config(text="", bg="white")
-            # Restaurar reloj desde el estado guardado
             seg_tot = getattr(self, "_seg_totales_guardados", None)
             self.segundos_jugados = getattr(self, "_seg_jugados_guardados", 0)
             if seg_tot is not None:
                 self.segundos_totales = seg_tot
             else:
-                # Guardado antiguo sin reloj: empezar desde cero
+                # guardado sin reloj: empezar desde cero
                 self.segundos_jugados = 0
                 if tipo_reloj == "timer":
                     h = self.config["reloj"]["horas"]
@@ -670,21 +644,23 @@ class SudokuApp:
                     self.segundos_totales = h * 3600 + m * 60 + s
                 else:
                     self.segundos_totales = 0
-        # Reiniciar pilas y estado
         self.pila_realizadas = crear_pila()
         self.pila_eliminadas = crear_pila()
         self.juego_cargado = False
         self.juego_iniciado = True
         self.btn_iniciar.config(state="disabled")
-        # Arrancar reloj
+        self._tipo_reloj_activo = tipo_reloj
+        if tipo_reloj == "timer":
+            _h = self.config["reloj"]["horas"]
+            _m = self.config["reloj"]["minutos"]
+            _s = self.config["reloj"]["segundos"]
+            self._timer_segundos_orig = _h * 3600 + _m * 60 + _s
+        self._sync_reloj_visible()
         if tipo_reloj in ("timer", "cronometro"):
             self.cronometro_activo = True
             self.actualizar_cronometro()
         else:
             self.cronometro_activo = False
-            self.label_horas.config(text="--")
-            self.label_minutos.config(text="--")
-            self.label_segs.config(text="--")
 
     def deshacer_jugada(self):
         if not self.juego_iniciado:
@@ -721,13 +697,11 @@ class SudokuApp:
             return
         respuesta = messagebox.askyesno("BORRAR EL JUEGO", "ESTA SEGURO DE BORRAR EL JUEGO? SI/NO")
         if respuesta:
-        # recorrer el tablero y borrar las casillas que no son fijas
             for i in range(9):
                 for j in range(9):
                     if not self.fijas[i][j]:
                         self.tablero[i][j] = 0
                         self.botones_tablero[i][j].config(text="", bg="white")
-        # reiniciar las pilas
             self.pila_realizadas = crear_pila()
             self.pila_eliminadas = crear_pila()
     def terminar_juego(self): 
@@ -741,7 +715,6 @@ class SudokuApp:
             for i in range(9):
                 for j in range (9):
                     self.botones_tablero[i][j].config(text = "", bg = "white")
-            #se reinician las pilas
             self.cronometro_activo = False
             self.pila_realizadas = crear_pila()
             self.pila_eliminadas = crear_pila()
@@ -755,7 +728,6 @@ class SudokuApp:
             self.label_segs.config(text="00")
 
     def ver_top(self):
-        # detener reloj mientras se ve el top
         estaba_activo = self.cronometro_activo
         self.cronometro_activo = False
 
@@ -796,7 +768,6 @@ class SudokuApp:
         y -= 30
 
         for nivel in ["dificil", "intermedio", "facil"]:
-            # recopilar partidas de este nivel desde todos los jugadores
             entradas = []
             for jugador in bitacora:
                 for partida in bitacora[jugador]:
@@ -817,6 +788,9 @@ class SudokuApp:
             c.setFont("Helvetica-Bold", 12)
             c.drawString(50, y, "NIVEL " + nivel.upper() + ":")
             y -= 18
+            c.setFont("Helvetica-Bold", 9)
+            c.drawString(70, y, "Jugador                    Tiempo      Jugado el")
+            y -= 14
             c.setFont("Helvetica", 10)
 
             if not entradas:
@@ -847,7 +821,6 @@ class SudokuApp:
         os.startfile(pdf_path)
         messagebox.showinfo("TOP", "Presione OK para continuar el juego")
 
-        # reanudar el reloj
         self.cronometro_activo = estaba_activo
         if estaba_activo:
             self.actualizar_cronometro()
@@ -879,7 +852,6 @@ class SudokuApp:
             tk.Radiobutton(ventana, text=etiqueta, variable=reloj_var,
                            value=valor).grid(row=i+1, column=1, padx=20, sticky="w")
 
-        # Campos de tiempo para el timer (horas 0-4, minutos 0-59, segundos 0-59)
         frame_timer = tk.Frame(ventana)
         frame_timer.grid(row=4, column=1, padx=20, pady=2, sticky="w")
         tk.Label(frame_timer, text="H").grid(row=0, column=0, padx=2)
@@ -892,9 +864,6 @@ class SudokuApp:
         tk.Spinbox(frame_timer, from_=0, to=59, textvariable=timer_m, width=4).grid(row=1, column=1, padx=2)
         tk.Spinbox(frame_timer, from_=0, to=59, textvariable=timer_s, width=4).grid(row=1, column=2, padx=2)
 
-        # los campos del timer siempre son visibles; solo se validan al guardar
-
-        
         tk.Label(ventana, text="Elementos:", font=("Arial", 11, "bold")).grid(
             row=0, column=2, padx=10, pady=5, sticky="w")
         elem_var = tk.StringVar(value=self.config["elementos"])
@@ -911,7 +880,6 @@ class SudokuApp:
             row=5, column=1, sticky="w")
 
         def guardar():
-            # validar timer si fue seleccionado
             if reloj_var.get() == "timer":
                 h = timer_h.get()
                 m = timer_m.get()
@@ -931,6 +899,7 @@ class SudokuApp:
                 json.dump(self.config, f, indent=4)
             self.label_nivel.config(text="Nivel: " + self.config["nivel"])
             self.reconstruir_panel_elementos()
+            self._sync_reloj_visible()
             messagebox.showinfo("GUARDADO", "Configuracion guardada exitosamente")
             ventana.destroy()
 
@@ -939,12 +908,10 @@ class SudokuApp:
                   row=6, column=0, columnspan=3, pady=10)
        
     def abrir_ayuda(self):
-        # Si el PDF existe, abrirlo (tiene imagenes de referencia)
         manual = "manual_de_usuario_sudoku.pdf"
         if os.path.exists(manual):
             os.startfile(manual)
             return
-        # Si no hay PDF, mostrar la ventana de texto como respaldo
         ventana = tk.Toplevel(self.root)
         ventana.title("Manual de Usuario - SUDOKU TEC")
         ventana.resizable(True, True)
@@ -975,7 +942,6 @@ class SudokuApp:
         L("S U D O K U  TEC", "titulo")
         L("Instituto Tecnologico de Costa Rica — Taller de Programacion\n", "titulo")
 
-        # ---- 1 ----
         L("1. Definicion del programa", "seccion")
         L("SUDOKU TEC es un programa de escritorio en Python 3 con interfaz tkinter.")
         L("El jugador llena una cuadricula 9x9 con los nueve elementos configurados")
@@ -983,7 +949,6 @@ class SudokuApp:
         L("Incluye: tres niveles, cronometro/timer, historial con deshacer/rehacer,")
         L("guardado de partidas y ranking Top X exportado a PDF.\n")
 
-        # ---- 2 ----
         L("2. Requisitos del sistema", "seccion")
         L("- Python 3.x instalado.")
         L("- Biblioteca tkinter (incluida por defecto en Windows).")
@@ -994,24 +959,24 @@ class SudokuApp:
         L("Para ejecutar:")
         L("    py sudoku.py\n", "codigo")
 
-        # ---- 3 ----
         L("3. Pantalla principal", "seccion")
         L("Zona             Descripcion")
         L("Encabezado       Titulo S U D O K U en letras blancas sobre fondo rojo.")
         L("Tablero          Cuadricula 9x9. Bordes gruesos delimitan subcuadriculas 3x3.")
         L("                 Casillas fijas en gris claro, vacias en blanco.")
         L("Panel derecho    Campo JUGADOR, panel de elementos (1-9 o A-I),")
-        L("                 etiqueta de nivel activo y cronometro.")
+        L("                 etiqueta de nivel activo y cronometro (oculto si reloj=Ninguno).")
         L("Botones de juego INICIAR, DESHACER, BORRAR, TOP X, REHACER,")
         L("                 TERMINAR, GUARDAR, CARGAR.")
         L("Botones de menu  CONFIGURAR, AYUDA, ACERCA DE, SALIR.")
         L("* El boton INICIAR JUEGO es el unico habilitado al abrir el programa.\n", "nota")
 
-        # ---- 4 ----
         L("4. Iniciar Juego", "seccion")
         L("Paso 1 — Ingresar el nombre del jugador (1 a 30 caracteres).", "subsec")
         L("Error si esta vacio o supera 30 caracteres:")
         L("  El nombre del jugador debe tener entre 1 y 30 caracteres", "codigo")
+        L("Si el nombre ya tiene partidas en el TOP se muestra una advertencia para")
+        L("que el jugador decida si continua con ese nombre o lo cambia.")
         L("Paso 2 — Verificar la configuracion (nivel activo en panel derecho).", "subsec")
         L("Paso 3 — Presionar INICIAR JUEGO.", "subsec")
         L("El programa carga una partida aleatoria segun el nivel.")
@@ -1020,11 +985,15 @@ class SudokuApp:
         L("Comportamiento del reloj:")
         L("  Cronometro  Arranca desde 00:00:00 y cuenta hacia arriba.")
         L("  Timer       Arranca desde H:M:S configurado y cuenta hacia abajo.")
-        L("              Al llegar a 00:00:00 el juego termina.")
-        L("  Ninguno     Muestra -- sin conteo. No se registra en el Top X.")
+        L("              Al llegar a 00:00:00 pregunta:")
+        L("              TIEMPO EXPIRADO. ¿DESEA CONTINUAR EL MISMO JUEGO (SI O NO)?", "codigo")
+        L("              SI: el reloj pasa a cronometro arrancando desde el tiempo")
+        L("                  original del timer y sigue contando hacia arriba.")
+        L("              NO: el juego termina.")
+        L("  Ninguno     Sin reloj. La seccion de cronometro se oculta.")
+        L("              No se registra en el Top X.")
         L("* Luego de INICIAR JUEGO el boton se deshabilita.\n", "nota")
 
-        # ---- 5 ----
         L("5. Seleccionar elemento y hacer una jugada", "seccion")
         L("Paso 1 — Clic en el numero o letra del panel derecho (se pone verde).", "subsec")
         L("Paso 2 — Clic en la casilla vacia del tablero.", "subsec")
@@ -1039,7 +1008,6 @@ class SudokuApp:
         L("La partida se guarda en bitacora (nombre, nivel, tiempo, fecha/hora).")
         L("* Sin elemento seleccionado al clic: FALTA SELECCIONAR UN ELEMENTO\n", "nota")
 
-        # ---- 6 ----
         L("6. Deshacer Jugada", "seccion")
         L("Elimina la ultima jugada (usa pila TDA). Puede usarse multiples veces.")
         L("El elemento pasa a la pila de jugadas eliminadas.")
@@ -1047,14 +1015,12 @@ class SudokuApp:
         L("  NO HAY JUGADAS PARA DESHACER — pila vacia.", "codigo")
         L("* La pila se reinicia al iniciar nuevo juego o usar BORRAR JUEGO.\n", "nota")
 
-        # ---- 7 ----
         L("7. Rehacer Jugada", "seccion")
         L("Restaura la ultima jugada deshecha (usa pila de eliminadas).")
         L("  NO SE HA INICIADO EL JUEGO  — sin partida activa.", "codigo")
         L("  NO HAY JUGADAS PARA REHACER — pila vacia.", "codigo")
         L("* Nueva jugada tras deshacer vacia la pila de eliminadas automaticamente.\n", "nota")
 
-        # ---- 8 ----
         L("8. Borrar Juego", "seccion")
         L("Limpia jugadas del jugador, dejando solo casillas fijas.")
         L("Pide confirmacion:")
@@ -1062,7 +1028,6 @@ class SudokuApp:
         L("SI: casillas no fijas en blanco, pilas reiniciadas. NO: sin cambios.")
         L("* Sin partida activa: NO SE HA INICIADO EL JUEGO\n", "nota")
 
-        # ---- 9 ----
         L("9. Terminar Juego", "seccion")
         L("Finaliza la partida sin completarla. Limpia tablero completo (incluyendo fijas),")
         L("detiene el reloj y habilita INICIAR JUEGO.")
@@ -1070,7 +1035,6 @@ class SudokuApp:
         L("La partida NO se guarda en la bitacora.")
         L("* Diferencia con BORRAR: elimina tambien casillas fijas. Irreversible.\n", "nota")
 
-        # ---- 10 ----
         L("10. Top X", "seccion")
         L("Genera y abre un PDF con el ranking de mejores tiempos por nivel.")
         L("El reloj se pausa mientras se genera. Archivo: sudoku2026_top.pdf")
@@ -1079,7 +1043,6 @@ class SudokuApp:
         L("Top X = 0 muestra todas. Ordenadas de menor a mayor tiempo.")
         L("* Solo se registran partidas completadas con cronometro o timer.\n", "nota")
 
-        # ---- 11 ----
         L("11. Guardar Juego", "seccion")
         L("Guarda el estado actual en sudoku2026juegoactual.json.")
         L("Solo disponible con partida iniciada. Sobreescribe si ya existe guardado")
@@ -1087,7 +1050,6 @@ class SudokuApp:
         L("  JUEGO GUARDADO EXITOSAMENTE", "codigo")
         L("* Sin partida activa: EL JUEGO NO HA SIDO INICIADO\n", "nota")
 
-        # ---- 12 ----
         L("12. Cargar Juego", "seccion")
         L("Recupera una partida guardada. Solo disponible sin partida en curso.")
         L("Pasos:")
@@ -1101,7 +1063,6 @@ class SudokuApp:
         L("  El nombre del jugador debe tener entre 1 y 30 caracteres", "codigo")
         L("  NO TIENE UN JUEGO GUARDADO CON ESTA DIFICULTAD\n", "codigo")
 
-        # ---- 13 ----
         L("13. Configurar", "seccion")
         L("Abre ventana para ajustar condiciones del juego.")
         L("Guarda en sudoku2026configuracion.json. Aplica a la siguiente partida.")
@@ -1123,23 +1084,19 @@ class SudokuApp:
         L("  Configuracion guardada exitosamente", "codigo")
         L("* Los cambios solo aplican a la siguiente partida.\n", "nota")
 
-        # ---- 14 ----
         L("14. Ayuda", "seccion")
         L("Muestra este manual de usuario dentro del programa.\n")
 
-        # ---- 15 ----
         L("15. Acerca de", "seccion")
         L("Muestra ventana con informacion del programa:")
         L("  Nombre: SUDOKU TEC  |  Version: 1.0  |  Fecha: Mayo 2026")
         L("  Autor: Aldrickson Yesua")
         L("  Curso: Taller de Programacion — TEC, Cartago, Costa Rica\n")
 
-        # ---- 16 ----
         L("16. Salir", "seccion")
         L("Cierra el programa inmediatamente.")
         L("* Se recomienda GUARDAR JUEGO antes de salir.\n", "nota")
 
-        # ---- 17 ----
         L("17. Manejo de errores", "seccion")
         errores = [
             ("El nombre del jugador debe tener entre 1 y 30 caracteres",
@@ -1168,14 +1125,14 @@ class SudokuApp:
              "No existe guardado para ese nombre y nivel."),
             ("El timer debe tener al menos un valor mayor a cero",
              "Timer seleccionado pero H, M y S estan en 0."),
-            ("TIEMPO EXPIRADO. JUEGO TERMINADO.",
-             "El timer llego a 00:00:00 sin completar el tablero."),
+            ("TIEMPO EXPIRADO. ¿DESEA CONTINUAR EL MISMO JUEGO (SI O NO)?",
+             "El timer llego a 00:00:00. SI convierte a cronometro; NO termina el juego."),
+            ("NOMBRE EN USO — confirmacion de nombre",
+             "El nombre ingresado ya existe en el TOP. Se pregunta si desea usarlo igual."),
             ("No hay partidas registradas aun",
              "Bitacora vacia al presionar TOP X."),
             ("Falta la libreria reportlab",
              "reportlab no instalado. Ejecutar: pip install reportlab"),
-            ("El manual de usuario no esta disponible todavia.",
-             "Archivo PDF del manual no encontrado."),
         ]
         for msg, causa in errores:
             texto.insert("end", "  " + msg + "\n", "codigo")
@@ -1250,19 +1207,12 @@ class SudokuApp:
             messagebox.showerror("ERROR", "NO TIENE UN JUEGO GUARDADO CON ESTA DIFICULTAD")
             return
         self.juego_cargado = True
-        # cargar los datos guardados
         datos = guardado[clave]
         tablero_raw = datos["tablero"]
         self.fijas   = datos["fijas"]
-
-        # Convertir todos los valores del tablero a enteros (compatibilidad con guardados antiguos)
         self.tablero = [[int(v) if isinstance(v, str) else v for v in fila] for fila in tablero_raw]
-
-        # Guardar estado del reloj si estaba guardado
         self._seg_totales_guardados = datos.get("segundos_totales", None)
         self._seg_jugados_guardados = datos.get("segundos_jugados", 0)
-
-        # mostrar en pantalla
         elementos_cfg = self.config.get("elementos", "numeros")
         for i in range(9):
             for j in range(9):
